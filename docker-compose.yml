@@ -1,0 +1,54 @@
+# docs/ARCHITECTURE.md — Deployment Assumptions: tek çalıştırma yolu
+# `docker-compose up`. `db-test`, docs/ARCHITECTURE.md Testing
+# Strategy'de izin verilen "ayrı bir test DB'si" seçeneğidir.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: todo
+      POSTGRES_PASSWORD: todo
+      POSTGRES_DB: todo
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  db-test:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: todo
+      POSTGRES_PASSWORD: todo
+      POSTGRES_DB: todo_test
+    ports:
+      - "5433:5432"
+
+  api:
+    build: ./src/api
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://todo:todo@db:5432/todo
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src/api:/app
+      - /app/node_modules
+
+  web:
+    build: ./src/web
+    depends_on:
+      - api
+    environment:
+      API_PROXY_TARGET: http://api:3000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./src/web:/app
+      - /app/node_modules
+
+volumes:
+  db-data:
