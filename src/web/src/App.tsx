@@ -1,81 +1,235 @@
-import { useState, FormEvent } from 'react';
-import { createTask, ApiError } from './api';
-import type { Task } from './types';
+import { useEffect, useState, FormEvent } from 'react';
+import {
+  ApiError,
+  createTask,
+  deleteTask,
+  listTags,
+  listTasks,
+  permanentlyDeleteTask,
+  reorderTasks,
+  restoreTask,
+  updateTask,
+} from './api';
+import TaskList from './components/TaskList';
+import { useTheme } from './useTheme';
+import type { Tag, Task, TaskView } from './types';
 
-// Bu ekran sadece docs/specs/001-todo-olustur.md kapsamındaki
-// "görev oluştur" özelliğini kapsar. Backend'de henüz bir listeleme
-// (GET) endpoint'i yok, bu yüzden aşağıdaki liste sadece bu oturumda
-// oluşturulan görevleri gösterir — sayfa yenilenince kaybolur.
+const VIEWS: { id: TaskView; label: string }[] = [
+  { id: 'active', label: 'Aktif' },
+  { id: 'completed', label: 'Tamamlananlar' },
+  { id: 'trash', label: 'Çöp Kutusu' },
+];
+
+const SEARCH_DEBOUNCE_MS = 250;
+
+function readViewFromUrl(): TaskView {
+  const raw = new URLSearchParams(window.location.search).get('view');
+  return raw === 'completed' || raw === 'trash' ? raw : 'active';
+}
+
+// docs/specs/002-uygulama-kabugu.md (App Shell) ve
+// docs/specs/003-gorev-listesi.md (Görev Listesi) implementasyonu.
 export default function App() {
-  const [title, setTitle] = useState('');
+  const { resolved: theme, toggle: toggleTheme } = useTheme();
+  const [view, setView] = useState<TaskView>(readViewFromUrl);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagMenuOpen, setTagMenuOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [fieldError, setFieldError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [quickAddTitle, setQuickAddTitle] = useState('');
+  const [quickAddError, setQuickAddError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setFieldError(null);
-    setFormError(null);
-    setSubmitting(true);
+  useEffect(() => {
+    function onPopState() {
+      setView(readViewFromUrl());
+    }
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
+  useEffect(() => {
+    listTags().then(setAllTags).catch(() => setAllTags([]));
+  }, []);
+
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedQuery(searchInput.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
+
+  useEffect(() => {
+    refreshTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, debouncedQuery, selectedTags]);
+
+  function refreshTasks() {
+    listTasks({ view, q: debouncedQuery || undefined, tags: selectedTags })
+      .then(setTasks)
+      .catch(() => setTasks([]));
+  }
+
+  function selectView(next: TaskView) {
+    setView(next);
+    const params = new URLSearchParams(window.location.search);
+    params.set('view', next);
+    window.history.pushState({}, '', `?${params.toString()}`);
+  }
+
+  function toggleTagFilter(name: string) {
+    setSelectedTags((prev) =>
+      prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name],
+    );
+  }
+
+  async function handleQuickAdd(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setQuickAddError(null);
+    setSubmitting(true);
     try {
-      const task = await createTask(title);
-      setTasks((prev) => [task, ...prev]);
-      setTitle('');
+      await createTask(quickAddTitle);
+      setQuickAddTitle('');
+      refreshTasks();
     } catch (err) {
-      if (err instanceof ApiError) {
-        setFieldError(err.fields?.title ?? null);
-        if (!err.fields?.title) {
-          setFormError(err.message);
-        }
-      } else {
-        setFormError('Görev oluşturulamadı. API çalışıyor mu?');
-      }
+      setQuickAddError(err instanceof ApiError ? (err.fields?.title ?? err.message) : 'Görev oluşturulamadı.');
     } finally {
       setSubmitting(false);
     }
   }
 
+  async function handleToggleCompleted(task: Task) {
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    await updateTask(task.id, { completed: !task.completed });
+    refreshTasks();
+  }
+
+  async function handleDelete(task: Task) {
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    await deleteTask(task.id);
+    refreshTasks();
+  }
+
+  async function handleRestore(task: Task) {
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    await restoreTask(task.id);
+    refreshTasks();
+  }
+
+  async function handlePermanentDelete(task: Task) {
+    // docs/specs/003-gorev-listesi.md §6 — geri dönüşsüz işlem, onay zorunlu
+    if (!window.confirm(`"${task.title}" kalıcı olarak silinsin mi? Bu işlem geri alınamaz.`)) {
+      return;
+    }
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    await permanentlyDeleteTask(task.id);
+    refreshTasks();
+  }
+
+  function handleReorder(taskId: string, newOrder: number) {
+    setTasks((prev) =>
+      [...prev]
+        .map((t) => (t.id === taskId ? { ...t, order: newOrder } : t))
+        .sort((a, b) => a.order - b.order),
+    );
+    reorderTasks([{ id: taskId, order: newOrder }]).catch(() => refreshTasks());
+  }
+
+  const hasActiveFilter = debouncedQuery.length > 0 || selectedTags.length > 0;
+
   return (
-    <main className="page">
-      <h1>Todo App</h1>
-
-      <form className="create-form" onSubmit={handleSubmit}>
-        <label htmlFor="title">Yeni görev</label>
-        <div className="create-form-row">
+    <div className="shell">
+      <header className="topbar">
+        <h1 className="wordmark">Todo</h1>
+        <div className="topbar-controls">
           <input
-            id="title"
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ne yapılacak?"
-            disabled={submitting}
+            type="search"
+            className="search-input"
+            placeholder="Ara…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            aria-label="Görevlerde ara"
           />
-          <button type="submit" disabled={submitting}>
-            {submitting ? 'Ekleniyor…' : 'Ekle'}
-          </button>
+          <div className="tag-filter">
+            <button
+              type="button"
+              className="tag-filter-button"
+              onClick={() => setTagMenuOpen((o) => !o)}
+              aria-expanded={tagMenuOpen}
+            >
+              etiket ▾{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}
+            </button>
+            {tagMenuOpen && (
+              <div className="tag-filter-menu">
+                {allTags.length === 0 && <p className="tag-filter-empty">Henüz etiket yok.</p>}
+                {allTags.map((tag) => (
+                  <label key={tag.id}>
+                    <input
+                      type="checkbox"
+                      checked={selectedTags.includes(tag.name)}
+                      onChange={() => toggleTagFilter(tag.name)}
+                    />
+                    #{tag.name}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-        {fieldError && <p className="error-text">{fieldError}</p>}
-        {formError && <p className="error-text">{formError}</p>}
-      </form>
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Aydınlık moda geç' : 'Karanlık moda geç'}
+          aria-label={theme === 'dark' ? 'Aydınlık moda geç' : 'Karanlık moda geç'}
+        >
+          {theme === 'dark' ? '☾' : '☀'}
+        </button>
+      </header>
 
-      <ul className="task-list">
-        {tasks.length === 0 && (
-          <li className="empty-state">Henüz bu oturumda görev eklenmedi.</li>
-        )}
-        {tasks.map((task) => (
-          <li key={task.id} className="task-item">
-            <span className="task-title">{task.title}</span>
-            <span className="task-priority">{task.priority}</span>
-          </li>
+      <nav className="tab-strip" role="tablist">
+        {VIEWS.map((v) => (
+          <button
+            key={v.id}
+            role="tab"
+            className="tab"
+            aria-selected={view === v.id}
+            onClick={() => selectView(v.id)}
+          >
+            {v.label}
+          </button>
         ))}
-      </ul>
+      </nav>
 
-      <p className="session-note">
-        Not: liste sadece bu oturuma ait — sayfayı yenilersen kaybolur
-        (backend'de henüz görevleri listeleyen bir endpoint yok).
-      </p>
-    </main>
+      <main className="content">
+        {view === 'active' && (
+          <form className="quick-add" onSubmit={handleQuickAdd}>
+            <input
+              type="text"
+              value={quickAddTitle}
+              onChange={(e) => setQuickAddTitle(e.target.value)}
+              placeholder="Ne yapılacak?"
+              disabled={submitting}
+              aria-label="Yeni görev başlığı"
+            />
+            <button type="submit" disabled={submitting}>
+              {submitting ? 'Ekleniyor…' : 'Ekle'}
+            </button>
+          </form>
+        )}
+        {quickAddError && <p className="field-error">{quickAddError}</p>}
+
+        <TaskList
+          view={view}
+          tasks={tasks}
+          hasActiveFilter={hasActiveFilter}
+          onToggleCompleted={handleToggleCompleted}
+          onDelete={handleDelete}
+          onRestore={handleRestore}
+          onPermanentDelete={handlePermanentDelete}
+          onReorder={handleReorder}
+        />
+      </main>
+    </div>
   );
 }

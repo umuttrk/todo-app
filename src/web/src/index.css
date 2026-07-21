@@ -1,100 +1,492 @@
+/* docs/specs/002-uygulama-kabugu.md — Design Tokens */
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+
+  --color-paper: #f7f3ea;
+  --color-ink: #241f1a;
+  --color-ink-muted: #6b6255;
+  --color-rule: #d8cfbf;
+  --color-slate: #35505c;
+  --color-brick: #b3402c;
+  --color-amber: #c98a2e;
+  --color-moss: #6b7a4f;
+  --color-surface: #ffffff;
+
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-tab: 6px;
+  --radius-sharp: 2px;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-paper: #1c1814;
+  --color-ink: #efe8dc;
+  --color-ink-muted: #a69c8c;
+  --color-rule: #3a332a;
+  --color-slate: #6e93a1;
+  --color-brick: #d9705a;
+  --color-amber: #e0a94e;
+  --color-moss: #93a66b;
+  --color-surface: #241f1a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
 body {
   margin: 0;
-  background: #f5f5f7;
-  color: #1a1a1a;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
 }
 
-.page {
-  max-width: 480px;
-  margin: 3rem auto;
-  padding: 0 1.5rem;
+:focus-visible {
+  outline: 2px solid var(--color-slate);
+  outline-offset: 2px;
 }
 
-h1 {
-  font-size: 1.5rem;
+button,
+input {
+  font-family: inherit;
+  color: inherit;
 }
 
-.create-form {
-  margin-bottom: 1.5rem;
-}
+/* ---------------------------------------------------------------- */
+/* App shell — üst bar                                               */
+/* ---------------------------------------------------------------- */
 
-.create-form label {
-  display: block;
-  font-size: 0.85rem;
-  margin-bottom: 0.35rem;
-  color: #555;
-}
-
-.create-form-row {
+.shell {
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 100vh;
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
 }
 
-.create-form-row input {
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.25rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   flex: 1;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 1rem;
+  min-width: 0;
 }
 
-.create-form-row button {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 6px;
-  background: #2563eb;
-  color: white;
-  font-size: 1rem;
+.search-input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sharp);
+  background: var(--color-surface);
+  font-size: 0.9rem;
+}
+
+.tag-filter {
+  position: relative;
+}
+
+.tag-filter-button {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sharp);
+  background: var(--color-surface);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 44px;
+}
+
+.tag-filter-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-1));
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sharp);
+  padding: var(--space-2);
+  min-width: 160px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.tag-filter-menu label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.85rem;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sharp);
+  min-height: 44px;
+}
+
+.tag-filter-menu input[type='checkbox'] {
+  accent-color: var(--color-slate);
+}
+
+.tag-filter-menu label:hover {
+  background: var(--color-paper);
+}
+
+.tag-filter-empty {
+  font-size: 0.8rem;
+  color: var(--color-ink-muted);
+  padding: var(--space-1) var(--space-2);
+}
+
+.theme-toggle {
+  border: 1px solid var(--color-rule);
+  background: var(--color-surface);
+  border-radius: var(--radius-sharp);
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 1.1rem;
   cursor: pointer;
 }
 
-.create-form-row button:disabled {
+/* ---------------------------------------------------------------- */
+/* Sekme şeridi                                                     */
+/* ---------------------------------------------------------------- */
+
+.tab-strip {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0 var(--space-4);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.tab {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  background: transparent;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  border-top-left-radius: var(--radius-tab);
+  border-top-right-radius: var(--radius-tab);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  min-height: 44px;
+}
+
+.tab[aria-selected='true'] {
+  color: var(--color-ink);
+  background: var(--color-paper);
+  border-bottom-color: var(--color-slate);
+}
+
+/* ---------------------------------------------------------------- */
+/* Ana içerik                                                       */
+/* ---------------------------------------------------------------- */
+
+.content {
+  flex: 1;
+  padding: var(--space-4);
+}
+
+.quick-add {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.quick-add input {
+  flex: 1;
+  padding: var(--space-3);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sharp);
+  background: var(--color-surface);
+  font-size: 1rem;
+}
+
+.quick-add button {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-slate);
+  border-radius: var(--radius-sharp);
+  background: var(--color-slate);
+  color: var(--color-paper);
+  font-size: 0.95rem;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.quick-add button:disabled {
   opacity: 0.6;
   cursor: default;
 }
 
-.error-text {
-  color: #dc2626;
+.field-error {
+  color: var(--color-brick);
   font-size: 0.85rem;
-  margin: 0.4rem 0 0;
+  margin: -0.5rem 0 var(--space-4);
 }
+
+/* ---------------------------------------------------------------- */
+/* Boş durumlar                                                      */
+/* ---------------------------------------------------------------- */
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+}
+
+.empty-state h2 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  margin: 0 0 var(--space-2);
+}
+
+.empty-state p {
+  color: var(--color-ink-muted);
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* ---------------------------------------------------------------- */
+/* Görev listesi ve kartı — docs/specs/003-gorev-listesi.md          */
+/* ---------------------------------------------------------------- */
 
 .task-list {
   list-style: none;
-  padding: 0;
   margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--color-rule);
 }
 
-.task-item {
+.task-card {
   display: flex;
-  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--color-rule);
+  border-left: 3px solid transparent;
+  background: var(--color-paper);
+}
+
+.task-card[data-priority='high'] {
+  border-left-color: var(--color-brick);
+  border-left-width: 4px;
+}
+
+.task-card[data-priority='medium'] {
+  border-left-color: var(--color-slate);
+}
+
+.task-card[data-priority='low'] {
+  border-left-color: var(--color-moss);
+}
+
+.task-card[data-dragging='true'] {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: scale(1.02);
+  background: var(--color-surface);
+}
+
+.task-card[data-view='trash'],
+.task-card[data-view='trash'] .task-title,
+.task-card[data-view='trash'] .task-description {
+  opacity: 0.7;
+}
+
+.task-checkbox {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
   align-items: center;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid #e5e5e5;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-  background: white;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.task-priority {
-  font-size: 0.75rem;
-  color: #666;
-  text-transform: uppercase;
+.task-checkbox input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--color-slate);
 }
 
-.empty-state {
-  color: #888;
-  font-size: 0.9rem;
-  padding: 0.5rem 0;
+.task-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.task-title {
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.task-card.completed .task-title {
+  text-decoration: line-through;
+  color: var(--color-ink-muted);
+}
+
+.task-description {
+  font-size: 0.85rem;
+  color: var(--color-ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 2px 0 0;
+}
+
+.task-tags {
+  margin: var(--space-1) 0 0;
+  font-size: 0.8rem;
+  color: var(--color-ink-muted);
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.task-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--color-ink-muted);
+  padding-top: 2px;
+}
+
+.due-badge[data-status='overdue'] {
+  color: var(--color-brick);
+  font-weight: 500;
+}
+
+.due-badge[data-status='today'] {
+  color: var(--color-amber);
+  font-weight: 500;
+}
+
+.subtask-count {
+  white-space: nowrap;
+}
+
+.drag-handle {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: grab;
+  color: var(--color-ink-muted);
+  background: none;
+  border: none;
+  opacity: 0;
+}
+
+.task-card:hover .drag-handle,
+.drag-handle:focus-visible {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .drag-handle {
+    opacity: 1;
+  }
+}
+
+.trash-actions {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.trash-actions button {
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--color-ink-muted);
+}
+
+.trash-actions button.permanent-delete {
+  color: var(--color-brick);
+}
+
+/* ---------------------------------------------------------------- */
+/* Responsive — docs/specs/002-uygulama-kabugu.md                    */
+/* ---------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .topbar {
+    flex-wrap: wrap;
+  }
+
+  .topbar-controls {
+    flex: 1 1 100%;
+    order: 3;
+  }
+
+  .wordmark {
+    flex: 1;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .session-note {
-  margin-top: 1.5rem;
   font-size: 0.8rem;
-  color: #888;
+  color: var(--color-ink-muted);
+  padding: 0 var(--space-4) var(--space-4);
 }
