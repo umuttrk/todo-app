@@ -1,9 +1,9 @@
-// Task modeli — docs/PRD.md §5 ve docs/ARCHITECTURE.md (Veri Modeli) ile
-// birebir uyumludur. Bu iterasyonda sadece Feature 001 (Görev Oluştur,
-// docs/specs/001-todo-olustur.md) kapsamındaki alanlar kullanılıyor;
-// Subtask/Tag modelleri henüz hiçbir endpoint tarafından kullanılmadığı
-// için kapsam dışı bırakıldı — ileride ilgili feature spec'leri
-// yazıldığında eklenecek.
+// Task/Subtask/Tag modelleri — docs/PRD.md §5 ve docs/ARCHITECTURE.md
+// (Veri Modeli) ile birebir uyumludur. Subtask ve Tag, docs/specs/003
+// (görev kartı: N/M sayacı, etiket chip'leri/filtresi) tarafından
+// okunur; kendi CRUD ekranları (PRD §9 "Etiketlerim", görev
+// düzenleme paneli) ayrı, henüz yazılmamış bir spec'in kapsamındadır
+// (bkz. docs/specs/003-gorev-listesi.md §6).
 
 generator client {
   provider = "prisma-client-js"
@@ -32,5 +32,42 @@ model Task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  subtasks Subtask[]
+  tags     TaskTag[]
+
   @@map("tasks")
+}
+
+// docs/PRD.md §5 — sade alt görev: kendi due date/priority/tag'i yok.
+model Subtask {
+  id        String  @id @default(uuid())
+  taskId    String
+  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  title     String
+  completed Boolean @default(false)
+  order     Int
+
+  @@map("subtasks")
+}
+
+// docs/PRD.md §9 — ad benzersizliği case-insensitive kontrol edilir
+// (bkz. migration.sql'deki functional unique index).
+model Tag {
+  id   String @id @default(uuid())
+  name String @unique
+
+  tasks TaskTag[]
+
+  @@map("tags")
+}
+
+// Task N—M Tag join tablosu.
+model TaskTag {
+  taskId String
+  tagId  String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+  @@map("task_tags")
 }

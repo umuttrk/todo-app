@@ -13,6 +13,13 @@ export class ValidationError extends Error {
   }
 }
 
+export class NotFoundError extends Error {
+  constructor(message = 'Kayıt bulunamadı') {
+    super(message);
+    this.name = 'NotFoundError';
+  }
+}
+
 export function errorEnvelope(code: string, message: string, fields?: ValidationFieldErrors) {
   return {
     error: {
